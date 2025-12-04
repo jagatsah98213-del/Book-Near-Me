@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Book Near Me — Free Version</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css"/>
+
+<!-- Font -->
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0f1724; --panel:rgba(255,255,255,0.06); --text:#e6eef8; --muted:#90a0b6;
+  --accent-start:#7c3aed; --accent-end:#06b6d4;
+}
+[data-theme="light"]{
+  --bg:#f4f7fb; --panel:rgba(255,255,255,0.92); --text:#0b1220; --muted:#334155;
+}
+html,body{height:100%;margin:0;font-family:'Poppins',system-ui,Arial; background:var(--bg); color:var(--text); display:flex; flex-direction:column;}
+header{display:flex; justify-content:space-between; align-items:center; padding:14px 18px; backdrop-filter: blur(6px);}
+.brand{display:flex; align-items:center; gap:12px;}
+.logo{width:44px;height:44px;border-radius:10px;background:linear-gradient(135deg,var(--accent-start),var(--accent-end));display:flex;align-items:center;justify-content:center;font-weight:700;box-shadow:0 6px 18px rgba(8,8,15,0.4);}
+.title{font-weight:600;font-size:18px;}
+.controls{display:flex; gap:10px; align-items:center;}
+.btn{border:none;padding:10px 12px;border-radius:10px;cursor:pointer;background:var(--panel);color:var(--text);font-weight:600;}
+.btn.primary{background:linear-gradient(90deg,var(--accent-start),var(--accent-end));color:white;box-shadow:0 6px 18px rgba(0,0,0,0.35);}
+main{display:grid; grid-template-columns:420px 1fr; gap:18px; padding:18px; flex:1; min-height:0;}
+.panel{background:var(--panel); border-radius:12px; padding:14px; box-shadow:0 10px 30px rgba(2,6,23,0.5); overflow:auto; max-height:calc(100vh - 120px);}
+#map{width:100%; height:calc(100vh - 164px); border-radius:12px; box-shadow:0 8px 26px rgba(2,6,23,0.6);}
+.book-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:10px; margin-bottom:12px; display:flex; gap:10px; align-items:flex-start;}
+.book-card img{width:88px;height:110px;object-fit:cover;border-radius:8px;flex-shrink:0;box-shadow:0 6px 16px rgba(2,6,23,0.6);}
+.book-meta{flex:1;}
+.book-meta h4{margin:0 0 6px 0;font-size:15px;}
+.book-meta p{margin:0;color:var(--muted);font-size:13px;}
+.small{font-size:12px;color:var(--muted); margin-top:8px;}
+.modal{position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(3,6,20,0.6); z-index:9999;}
+.modal-card{width:360px; background:var(--panel); padding:20px; border-radius:12px; box-shadow:0 12px 40px rgba(2,6,23,0.6); color:var(--text);}
+.field{margin-top:12px;}
+input[type="text"], input[type="email"], select{width:100%;padding:10px;border-radius:8px;border:none;background:rgba(255,255,255,0.03);color:var(--text);}
+.muted{color:var(--muted);}
+.user-menu{position:relative;}
+.menu{position:absolute; right:0; top:48px; background:var(--panel); border-radius:10px; padding:8px; min-width:240px; box-shadow:0 8px 24px rgba(2,6,23,0.5);}
+.menu button{display:block;width:100%;text-align:left;padding:8px;border-radius:8px;border:none;background:transparent;color:var(--text);cursor:pointer;}
+label.switch{display:inline-flex; gap:8px; align-items:center;}
+.footer-note{font-size:12px;color:var(--muted);margin-top:8px;}
+.login-card { width: 400px; padding: 28px; border-radius: 20px; background: rgba(255,255,255,0.06); backdrop-filter: blur(14px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 20px 45px rgba(0,0,0,0.6); animation: fadeIn 0.5s ease; }
+.login-header{text-align:center;margin-bottom:12px}
+.login-logo{font-size:36px;margin-bottom:10px}
+.login-input{width:100%; padding:12px 14px; border-radius:14px; border:none; font-size:15px; color:var(--text); background:rgba(255,255,255,0.08); backdrop-filter: blur(10px);}
+.login-btn{width:100%; padding:12px 14px; border-radius:14px; border:none; margin-top:16px; font-weight:600; font-size:15px; background:linear-gradient(90deg,var(--accent-start),var(--accent-end)); color:#fff; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,0.4);}
+.login-btn-alt{width:100%; padding:12px; border-radius:14px; border:none; margin-top:10px; font-weight:600; background:rgba(255,255,255,0.06); color:var(--text); cursor:pointer;}
+.profile-card { width: 460px; background: rgba(255,255,255,0.08); backdrop-filter: blur(16px); padding: 24px; border-radius: 18px; box-shadow: 0 18px 40px rgba(0,0,0,0.55); }
+@keyframes fadeIn { from { opacity:0; transform:scale(0.96); } to { opacity:1; transform:scale(1); } }
+@media(max-width:980px){main{grid-template-columns:1fr; padding:12px} #map{height:60vh}}
+</style>
+</head>
+<body data-theme="dark">
+
+<header>
+  <div class="brand">
+    <div class="logo">B</div>
+    <div>
+      <div class="title">Book Near Me</div>
+      <div class="muted" style="font-size:12px">Realtime book map</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <label class="switch muted">
+      <input id="modeToggle" type="checkbox" style="width:0;height:0;opacity:0;"/>
+      <span id="modeLabel" class="muted">Dark</span>
+    </label>
+
+    <button class="btn" id="myLocationBtn">📍 My Location</button>
+
+    <div class="user-menu" id="userMenuContainer" style="display:none;">
+      <button class="btn" id="userBtn">User</button>
+      <div class="menu" id="userMenu" style="display:none;">
+        <div style="padding:8px 4px;">
+          <div class="muted" id="menuUserName"></div>
+        </div>
+        <hr style="border:none;height:1px;background:rgba(255,255,255,0.04);margin:8px 0;">
+        <button onclick="goToProfile()">Profile</button>
+        <button onclick="subscribeNSJagat()">📺 Subscribe NS Jagat</button>
+        <button onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <button class="btn primary" id="openLoginBtn">Sign In</button>
+  </div>
+</header>
+
+<main>
+  <aside class="panel" id="leftPanel">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div>
+        <h3 style="margin:0">Add / Filter</h3>
+        <div class="muted" style="font-size:13px">Add books (sellers) • Filter & sort (all)</div>
+      </div>
+      <div>
+        <select id="sortSelect" class="btn" style="background:transparent; padding:8px 10px;">
+          <option value="recent">Recent</option>
+          <option value="nearest">Nearest</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="addBookSection" style="margin-top:12px; display:none;">
+      <div style="font-weight:600">Post a book</div>
+      <div class="field"><input id="titleIn" placeholder="Title" type="text"></div>
+      <div class="field"><input id="authorIn" placeholder="Author" type="text"></div>
+      <div class="field"><select id="categoryIn"><option>Fiction</option><option>Non-Fiction</option><option>Education</option><option>Technology</option><option>Kids</option></select></div>
+      <div class="field"><input id="priceIn" placeholder="Price (optional)" type="text"></div>
+      <div class="field"><input id="imageIn" type="file" accept="image/*"></div>
+      <div class="field"><button class="btn primary" id="postBookBtn">Post Book</button></div>
+      <div class="footer-note">Images are compressed before upload. Keep &lt;1MB.</div>
+    </div>
+
+    <hr style="border:none;height:1px;background:rgba(255,255,255,0.04); margin:14px 0;">
+
+    <div style="display:flex; gap:8px; align-items:center; justify-content:space-between;">
+      <div style="font-weight:600">Available Books</div>
+      <div class="muted">Realtime • Global</div>
+    </div>
+
+    <div id="booksList" style="margin-top:12px;"></div>
+  </aside>
+
+  <section>
+    <div id="map"></div>
+  </section>
+</main>
+
+<!-- Login modal -->
+<div class="modal" id="loginModal" style="display:none;">
+  <div class="modal-card login-card">
+    <div class="login-header">
+      <div class="login-logo">📚</div>
+      <h2>Welcome</h2>
+      <p class="muted">Sign in as Buyer or Seller</p>
+    </div>
+
+    <div class="field">
+      <input id="loginName" placeholder="Display name" type="text" class="login-input"/>
+    </div>
+    <div class="field">
+      <select id="loginRole" class="login-input">
+        <option value="buyer">Buyer</option>
+        <option value="seller">Seller</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label><input type="checkbox" id="acceptRules"/> I accept Privacy & Policies</label>
+    </div>
+
+    <button class="login-btn" id="signInBtn">Sign In (anonymous)</button>
+    <button class="login-btn-alt" onclick="closeLogin()">Cancel</button>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+<script>
+/* -------------------------
+   FIREBASE INIT
+-------------------------*/
+const firebaseConfig = {
+  apiKey: "AIzaSyB3kahd5nJOga4YUZnHATrPHu4Ief7b_64",
+  authDomain: "book-nearme.firebaseapp.com",
+  projectId: "book-nearme",
+  storageBucket: "book-nearme.appspot.com",
+  messagingSenderId: "857560283510",
+  appId: "1:857560283510:web:9c4bd7f7dca04c35552257",
+  measurementId: "G-NRR2KSN4WD"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+/* -------------------------
+   GLOBAL STATE
+-------------------------*/
+let currentUser=null, currentRole=null, currentLocation=null, map=null, markersLayer=null;
+
+/* -------------------------
+   THEME
+-------------------------*/
+const modeToggle = document.getElementById('modeToggle');
+const modeLabel = document.getElementById('modeLabel');
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  modeLabel.innerText = theme==='dark'?'Dark':'Light';
+  modeToggle.checked = theme==='light';
+  localStorage.setItem('bm_theme', theme);
+}
+modeToggle.addEventListener('change', ()=>applyTheme(modeToggle.checked?'light':'dark'));
+applyTheme(localStorage.getItem('bm_theme')||'dark');
+
+/* -------------------------
+   MAP INIT
+-------------------------*/
+function initMap(){
+  map = L.map('map',{zoomControl:true}).setView([20,0],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19, attribution:'&copy; OpenStreetMap contributors'}).addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+initMap();
+
+/* -------------------------
+   GEOLOCATION
+-------------------------*/
+document.getElementById('myLocationBtn').addEventListener('click',()=>{
+  if(!navigator.geolocation) return alert('Geolocation not supported.');
+  navigator.geolocation.getCurrentPosition(pos=>{
+    currentLocation={lat:pos.coords.latitude,lng:pos.coords.longitude};
+    map.setView([currentLocation.lat,currentLocation.lng],12);
+    L.circle([currentLocation.lat,currentLocation.lng],{radius:200,color:'#06b6d4',opacity:0.6}).addTo(map);
+  },err=>alert('Could not get location: '+(err.message||err)));
+});
+
+/* -------------------------
+   LOGIN MODAL
+-------------------------*/
+const loginModal=document.getElementById('loginModal');
+const openLoginBtn=document.getElementById('openLoginBtn');
+const signInBtn=document.getElementById('signInBtn');
+openLoginBtn.addEventListener('click',()=>loginModal.style.display='flex');
+function closeLogin(){loginModal.style.display='none';}
+
+</script>
+<script>
+// -------------------------
+// HELPER FUNCTIONS
+// -------------------------
+function compressImage(file, maxSizeMB = 1, callback){
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = e=>{
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = ()=>{
+            const canvas = document.createElement('canvas');
+            let width = img.width, height = img.height;
+            const ratio = width/height;
+            if(width>1024){ width=1024; height=1024/ratio; }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img,0,0,width,height);
+            let quality = 0.8;
+            let base64 = canvas.toDataURL('image/jpeg', quality);
+            while((base64.length*3/4/1024/1024)>maxSizeMB && quality>0.2){
+                quality -= 0.1;
+                base64 = canvas.toDataURL('image/jpeg', quality);
+            }
+            callback(base64);
+        }
+    }
+}
+
+// -------------------------
+// LOGIN & ROLE
+// -------------------------
+signInBtn.addEventListener('click',()=>{
+    const name = document.getElementById('loginName').value.trim();
+    const role = document.getElementById('loginRole').value;
+    const accepted = document.getElementById('acceptRules').checked;
+    if(!name) return alert('Enter your display name');
+    if(!accepted) return alert('You must accept Privacy & Policy');
+
+    auth.signInAnonymously().then(cred=>{
+        currentUser = {uid:cred.user.uid, name, role};
+        currentRole = role;
+        closeLogin();
+        document.getElementById('userMenuContainer').style.display='block';
+        document.getElementById('menuUserName').innerText=`${name} (${role})`;
+        if(role==='seller') document.getElementById('addBookSection').style.display='block';
+        fetchBooks();
+    }).catch(err=>alert(err.message));
+});
+
+// -------------------------
+// POST BOOK
+// -------------------------
+document.getElementById('postBookBtn').addEventListener('click',()=>{
+    const title = document.getElementById('titleIn').value.trim();
+    const author = document.getElementById('authorIn').value.trim();
+    const category = document.getElementById('categoryIn').value;
+    const price = document.getElementById('priceIn').value.trim();
+    const imageFile = document.getElementById('imageIn').files[0];
+
+    if(!title || !author || !imageFile) return alert('Title, Author and Image are required');
+    if(!currentLocation) return alert('Get your location first');
+
+    compressImage(imageFile,1,base64=>{
+        // add document to Firestore with status pending
+        db.collection('books').add({
+            title, author, category, price, image:base64,
+            location: new firebase.firestore.GeoPoint(currentLocation.lat, currentLocation.lng),
+            sellerId: currentUser.uid,
+            sellerName: currentUser.name,
+            status: 'reviewing',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(()=>{
+            alert('Book submitted! Your data is in safe hand and under review.');
+            document.getElementById('titleIn').value='';
+            document.getElementById('authorIn').value='';
+            document.getElementById('priceIn').value='';
+            document.getElementById('imageIn').value='';
+        }).catch(err=>alert('Error: '+err.message));
+    });
+});
+
+// -------------------------
+// FETCH & DISPLAY BOOKS
+// -------------------------
+function fetchBooks(){
+    db.collection('books').orderBy('createdAt','desc')
+    .onSnapshot(snapshot=>{
+        markersLayer.clearLayers();
+        const booksList = document.getElementById('booksList');
+        booksList.innerHTML='';
+        snapshot.forEach(doc=>{
+            const data = doc.data();
+            const li = document.createElement('div');
+            li.className='book-card';
+            li.innerHTML=`<img src="${data.image}"/><div class="book-meta">
+                <h4>${data.title}</h4>
+                <p>${data.author} • ${data.category}</p>
+                <p>Price: ${data.price||'N/A'}</p>
+                <p class="small">${data.status==='approved'?'Available':'Reviewing'}</p>
+            </div>`;
+            booksList.appendChild(li);
+
+            // Add marker to map
+            if(data.location){
+                const marker = L.marker([data.location.latitude,data.location.longitude])
+                    .bindPopup(`<b>${data.title}</b><br>${data.author}<br>Status: ${data.status}`)
+                    .addTo(markersLayer);
+            }
+        });
+    });
+}
+
+// -------------------------
+// FILTER / SORT
+// -------------------------
+document.getElementById('sortSelect').addEventListener('change', e=>{
+    const val = e.target.value;
+    if(val==='nearest'){
+        if(!currentLocation) return alert('Get location first');
+        db.collection('books').get().then(snap=>{
+            const booksArr=[];
+            snap.forEach(doc=>{
+                const data=doc.data();
+                if(data.location){
+                    const latDiff = data.location.latitude - currentLocation.lat;
+                    const lngDiff = data.location.longitude - currentLocation.lng;
+                    const dist = latDiff*latDiff + lngDiff*lngDiff;
+                    booksArr.push({...data,dist});
+                }
+            });
+            booksArr.sort((a,b)=>a.dist-b.dist);
+            // render sorted
+            renderBooksList(booksArr);
+        });
+    }else fetchBooks();
+});
+
+function renderBooksList(arr){
+    markersLayer.clearLayers();
+    const booksList = document.getElementById('booksList');
+    booksList.innerHTML='';
+    arr.forEach(data=>{
+        const li = document.createElement('div');
+        li.className='book-card';
+        li.innerHTML=`<img src="${data.image}"/><div class="book-meta">
+                <h4>${data.title}</h4>
+                <p>${data.author} • ${data.category}</p>
+                <p>Price: ${data.price||'N/A'}</p>
+                <p class="small">${data.status==='approved'?'Available':'Reviewing'}</p>
+            </div>`;
+        booksList.appendChild(li);
+        if(data.location){
+            L.marker([data.location.latitude,data.location.longitude])
+             .bindPopup(`<b>${data.title}</b><br>${data.author}<br>Status: ${data.status}`)
+             .addTo(markersLayer);
+        }
+    });
+}
+
+// -------------------------
+// PROFILE / SUBSCRIBE
+// -------------------------
+function goToProfile(){ alert('Profile view coming soon!'); }
+function subscribeNSJagat(){ window.open('https://www.youtube.com/@nsjagat-c','_blank'); }
+
+// -------------------------
+// LOGOUT
+// -------------------------
+function logout(){
+    auth.signOut().then(()=>location.reload());
+}
+
+// -------------------------
+// PERSISTENT SESSION
+// -------------------------
+auth.onAuthStateChanged(user=>{
+    if(user && currentUser==null){
+        currentUser = {uid:user.uid, name:'Guest', role:'buyer'};
+        currentRole='buyer';
+        document.getElementById('userMenuContainer').style.display='block';
+        document.getElementById('menuUserName').innerText=`Guest (Buyer)`;
+        fetchBooks();
+    }
+});
+
+</script>
+</body>
+</html>
